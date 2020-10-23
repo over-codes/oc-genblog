@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::fs::File;
 use std::io::prelude::*;
+use std::path::Path;
 
 use tera::{Context, Tera};
 use log::{error};
@@ -47,7 +48,18 @@ impl tera::Function for StringValue {
     fn is_safe(&self) -> bool { true }
 }
 
-pub fn process(template_path: &str, filename: &str) -> Result<(), Box<dyn std::error::Error>> {
+struct SelfUrl {
+    base_url: String,
+    filename: String,
+}
+
+impl tera::Function for SelfUrl {
+    fn call(&self, _args: &HashMap<String, tera::Value>) -> tera::Result<tera::Value> {
+        Ok(tera::Value::String(format!("{}/{}", self.base_url, self.filename)))
+    }
+}
+
+pub fn process(template_path: &str, filename: &str, base_url: &str) -> Result<(), Box<dyn std::error::Error>> {
     // open the specified file
     let mut file = File::open(filename)?;
     let mut contents = String::new();
@@ -99,7 +111,10 @@ pub fn process(template_path: &str, filename: &str) -> Result<(), Box<dyn std::e
     tera.register_function("attribute", Attributes{attributes});
     tera.register_function("content", StringValue{val: html_buff});
     tera.register_function("last_modified", StringValue{val: format!("{}", DateTime::<Local>::from(metadata.modified().unwrap()).format("%Y-%m-%d"))});
+    let out_path = Path::new(filename).with_extension("html");
+    tera.register_function("self_url", SelfUrl{base_url: base_url.to_string(), filename: out_path.to_string_lossy().to_string()});
     let context = Context::new();
-    println!("{}", tera.render(&template.clone(), &context)?);
+    let mut file = File::create(out_path)?;
+    file.write_all((tera.render(&template.clone(), &context)?).as_bytes())?;
     Ok(())
 }

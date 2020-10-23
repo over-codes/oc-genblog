@@ -13,12 +13,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .long("templates")
                 .short("t")
                 .default_value("templates/*"))
+        .arg(Arg::with_name("base_url")
+                .help("base URL to use for some filters")
+                .long("base_url")
+                .short("u")
+                .default_value(""))
         .arg(Arg::with_name("INPUT")
                 .required(true)
                 .index(1)
                 .help("Markdown file to scan"))
     .get_matches();
-    process(matches.value_of("templates").unwrap(), matches.value_of("INPUT").unwrap())?;
+    let base_url = matches.value_of("base_url").unwrap();
+    process(matches.value_of("templates").unwrap(), matches.value_of("INPUT").unwrap(), base_url)?;
 
     Ok(())
 }
